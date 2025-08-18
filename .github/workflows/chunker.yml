@@ -1,4 +1,4 @@
-name: Build Chunk Index
+name: Build & Commit Chunk Index
 
 on:
   workflow_dispatch:
@@ -9,12 +9,19 @@ on:
       - 'markdown_chunker.py'
       - 'chunker.config.json'
       - 'urls.map.csv'
+    paths-ignore:
+      - 'data/chunks/**'   # avoid re-triggering from our own commits
+
+permissions:
+  contents: write  # allow this workflow to push back to the repo
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # keep history so pushes are clean
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -27,10 +34,9 @@ jobs:
       - name: Run chunker
         run: python run_chunker.py
 
-      - name: Upload results (JSONL + CSV)
-        uses: actions/upload-artifact@v4
+      # Option A: simple, well-maintained action for auto-commits
+      - name: Commit chunk outputs
+        uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          name: chunk-output
-          path: |
-            aps_chunk_index.jsonl
-            aps_chunk_index.csv
+          commit_message: "chore: update chunk index"
+          file_pattern: data/chunks/**
