@@ -3,17 +3,11 @@ name: Build & Commit Chunk Index
 on:
   workflow_dispatch:
   push:
-    paths:
-      - '**/*.md'
-      - 'run_chunker.py'
-      - 'markdown_chunker.py'
-      - 'chunker.config.json'
-      - 'urls.map.csv'
     paths-ignore:
-      - 'data/chunks/**'   # avoid re-triggering from our own commits
+      - 'data/chunks/**'
 
 permissions:
-  contents: write  # allow this workflow to push back to the repo
+  contents: write
 
 jobs:
   build:
@@ -21,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # keep history so pushes are clean
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -34,7 +28,6 @@ jobs:
       - name: Run chunker
         run: python run_chunker.py
 
-      # Option A: simple, well-maintained action for auto-commits
       - name: Commit chunk outputs
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
