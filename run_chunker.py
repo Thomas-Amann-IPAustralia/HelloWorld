@@ -12,9 +12,7 @@ def resolve_inputs(globs_list):
     files = []
     for pattern in globs_list:
         files.extend(glob.glob(pattern, recursive=True))
-    # only markdown files, unique, existing
     files = [f for f in files if f.lower().endswith(".md") and os.path.isfile(f)]
-    # make paths deterministic
     return sorted(set(files))
 
 def load_base_url_map(csv_path):
@@ -30,6 +28,11 @@ def load_base_url_map(csv_path):
                 mapping[fn] = url
     return mapping or None
 
+def ensure_outdir(out_prefix: str):
+    out_path = Path(out_prefix)
+    out_dir = out_path.parent if out_path.suffix else out_path
+    out_dir.mkdir(parents=True, exist_ok=True)
+
 def main():
     cfg = load_config()
     input_files = resolve_inputs(cfg.get("input_globs", ["**/*.md"]))
@@ -38,6 +41,9 @@ def main():
 
     base_map = load_base_url_map(cfg.get("base_url_map_file", ""))
 
+    out_prefix = cfg.get("out_prefix", "data/chunks/aps_chunk_index")
+    ensure_outdir(out_prefix)
+
     info = build_chunk_index(
         input_paths=input_files,
         max_tokens=int(cfg.get("max_tokens", 420)),
@@ -45,7 +51,7 @@ def main():
         overlap_sentences=int(cfg.get("overlap_sentences", 1)),
         cap_heading_level=cfg.get("cap_heading_level", 2),
         base_url_map=base_map,
-        out_prefix=cfg.get("out_prefix", "aps_chunk_index")
+        out_prefix=out_prefix
     )
 
     print("Chunking complete:", info)
