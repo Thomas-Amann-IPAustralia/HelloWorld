@@ -1,6 +1,6 @@
 {
   "input_globs": [
-    "HelloWorld/Style Guide Content/**/*.md"
+    "Style Guide Content/**/*.md"
   ],
   "out_prefix": "aps_chunk_index",
   "max_tokens": 420,
