@@ -1,0 +1,33 @@
+name: Build Chunk Index
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '**.md'
+      - 'run_chunker.py'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install pandas
+
+      - name: Run chunker
+        run: python run_chunker.py
+
+      - name: Upload results
+        uses: actions/upload-artifact@v3
+        with:
+          name: chunk-output
+          path: |
+            aps_chunk_index.jsonl
+            aps_chunk_index.csv
