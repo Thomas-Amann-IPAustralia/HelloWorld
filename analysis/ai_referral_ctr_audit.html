@@ -1,0 +1,636 @@
+<title>AI Referral CTR Audit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@500;600&display=swap">
+<style>
+:root{
+  color-scheme: light;
+  --plane:#f3f5f6; --surface:#fdfdfc; --sunk:#eef1f2;
+  --ink:#101418; --ink-2:#4d545c; --muted:#878e96;
+  --grid:#e4e7e6; --axis:#c4c9c6; --rule:rgba(16,20,24,.11);
+  --c1:#2a78d6; --c2:#eb6834; --c3:#1baf7a; --c4:#eda100;
+  --c1-soft:rgba(42,120,214,.13); --c2-soft:rgba(235,104,52,.16);
+  --crit:#d03b3b; --warn:#b07400; --good:#0a7d0a;
+  --crit-bg:rgba(208,59,59,.10); --warn-bg:rgba(250,178,25,.16); --good-bg:rgba(12,163,12,.11);
+  --shade:rgba(16,20,24,.055);
+  --serif:"IBM Plex Serif",Georgia,"Times New Roman",serif;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){ :root:where(:not([data-theme="light"])){
+  color-scheme: dark;
+  --plane:#0d0f11; --surface:#181b1d; --sunk:#212527;
+  --ink:#f4f6f5; --ink-2:#bcc2c0; --muted:#868c8a;
+  --grid:#282c2e; --axis:#3b4042; --rule:rgba(255,255,255,.12);
+  --c1:#3987e5; --c2:#d95926; --c3:#199e70; --c4:#c98500;
+  --c1-soft:rgba(57,135,229,.18); --c2-soft:rgba(217,89,38,.22);
+  --crit:#e56b6b; --warn:#fab219; --good:#3cbb3c;
+  --crit-bg:rgba(229,107,107,.13); --warn-bg:rgba(250,178,25,.13); --good-bg:rgba(60,187,60,.13);
+  --shade:rgba(255,255,255,.055);
+}}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --plane:#0d0f11; --surface:#181b1d; --sunk:#212527;
+  --ink:#f4f6f5; --ink-2:#bcc2c0; --muted:#868c8a;
+  --grid:#282c2e; --axis:#3b4042; --rule:rgba(255,255,255,.12);
+  --c1:#3987e5; --c2:#d95926; --c3:#199e70; --c4:#c98500;
+  --c1-soft:rgba(57,135,229,.18); --c2-soft:rgba(217,89,38,.22);
+  --crit:#e56b6b; --warn:#fab219; --good:#3cbb3c;
+  --crit-bg:rgba(229,107,107,.13); --warn-bg:rgba(250,178,25,.13); --good-bg:rgba(60,187,60,.13);
+  --shade:rgba(255,255,255,.055);
+}
+*{box-sizing:border-box}
+body{background:var(--plane);color:var(--ink);font-family:var(--sans);
+  font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased;}
+.wrap{max-width:1060px;margin:0 auto;padding-inline:20px;padding-block:44px 72px;
+  display:flex;flex-direction:column;gap:44px;}
+h1,h2,h3{font-family:var(--serif);font-weight:600;text-wrap:balance;margin:0;letter-spacing:-.005em}
+h1{font-size:clamp(29px,4.6vw,42px);line-height:1.1}
+h2{font-size:clamp(20px,2.7vw,25px);line-height:1.2}
+h3{font-size:17px;font-family:var(--sans);font-weight:600}
+p{margin:0}
+a{color:var(--c1)}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--muted);font-weight:500}
+.lede{font-size:17px;color:var(--ink-2);max-width:66ch;line-height:1.6}
+.note{font-size:13.5px;color:var(--ink-2);max-width:76ch;line-height:1.6}
+.dim{color:var(--muted)}
+code,.cell{font-family:var(--mono);font-size:.88em;background:var(--sunk);
+  padding:1px 5px;border-radius:3px;color:var(--ink-2);white-space:nowrap}
+
+/* masthead */
+header{display:flex;flex-direction:column;gap:14px;border-bottom:1px solid var(--rule);padding-bottom:32px}
+.verdict{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:4px}
+.chip{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:500;
+  padding:5px 11px 5px 9px;border-radius:99px;border:1px solid var(--rule);background:var(--surface)}
+.chip .dot{width:8px;height:8px;border-radius:99px;flex:none}
+.chip.ok .dot{background:var(--good)} .chip.ok{background:var(--good-bg);border-color:transparent;color:var(--good)}
+.chip.wr .dot{background:var(--warn)} .chip.wr{background:var(--warn-bg);border-color:transparent;color:var(--warn)}
+.chip.cr .dot{background:var(--crit)} .chip.cr{background:var(--crit-bg);border-color:transparent;color:var(--crit)}
+
+/* stat strip */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:1px;
+  background:var(--rule);border:1px solid var(--rule);border-radius:8px;overflow:hidden}
+.stat{background:var(--surface);padding:16px 18px 15px;display:flex;flex-direction:column;gap:3px}
+.stat .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.stat .v{font-family:var(--mono);font-size:27px;font-weight:500;letter-spacing:-.02em;line-height:1.15}
+.stat .s{font-size:12.5px;color:var(--ink-2);line-height:1.4}
+.stat.flag .v{color:var(--crit)}
+
+/* findings */
+.findings{display:flex;flex-direction:column;gap:0;border-top:1px solid var(--rule)}
+.finding{display:grid;grid-template-columns:132px 1fr;gap:20px;padding:18px 0;border-bottom:1px solid var(--rule)}
+.finding .sev{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.finding h3{margin-bottom:5px}
+.finding .body{font-size:14px;color:var(--ink-2);line-height:1.6;max-width:72ch}
+.finding .body b{color:var(--ink);font-weight:600}
+.fix{margin-top:8px;font-size:13px;padding:8px 12px;background:var(--sunk);border-radius:6px;
+  border-left:2px solid var(--c1);color:var(--ink-2)}
+
+/* figures */
+figure{margin:0;background:var(--surface);border:1px solid var(--rule);border-radius:8px;
+  padding:20px 20px 16px;display:flex;flex-direction:column;gap:14px}
+figcaption{display:flex;flex-direction:column;gap:5px}
+figcaption .t{font-family:var(--serif);font-size:18.5px;font-weight:600;letter-spacing:-.005em}
+figcaption .d{font-size:13.5px;color:var(--ink-2);line-height:1.55;max-width:78ch}
+.plot{width:100%;overflow-x:auto}
+.plot svg{display:block;width:100%;height:auto;min-width:0}
+.legend{display:flex;flex-wrap:wrap;gap:7px 18px;font-size:12.5px;color:var(--ink-2)}
+.legend span{display:inline-flex;align-items:center;gap:7px}
+.legend i{width:13px;height:3px;border-radius:2px;flex:none;display:inline-block}
+.legend i.sq{width:10px;height:10px;border-radius:2px}
+.src{font-size:11.5px;color:var(--muted);font-family:var(--mono);letter-spacing:.02em}
+
+/* table */
+details{border:1px solid var(--rule);border-radius:8px;background:var(--surface);overflow:hidden}
+summary{cursor:pointer;padding:11px 16px;font-size:13px;font-weight:500;color:var(--ink-2);
+  list-style:none;display:flex;align-items:center;gap:8px}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"";width:0;height:0;border-left:5px solid var(--muted);
+  border-top:4px solid transparent;border-bottom:4px solid transparent;transition:transform .15s}
+details[open] summary::before{transform:rotate(90deg)}
+summary:focus-visible{outline:2px solid var(--c1);outline-offset:-2px}
+.tw{overflow-x:auto;border-top:1px solid var(--rule)}
+table{border-collapse:collapse;width:100%;font-size:12.5px;font-variant-numeric:tabular-nums}
+th,td{padding:7px 12px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--rule)}
+th:first-child,td:first-child{text-align:left;font-family:var(--mono);font-size:11.5px}
+thead th{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:500}
+tbody td{font-family:var(--mono);color:var(--ink-2)}
+tbody tr.part td{color:var(--warn)}
+tfoot td{font-weight:600;color:var(--ink);font-family:var(--mono)}
+
+/* tooltip */
+#tip{position:fixed;pointer-events:none;z-index:50;opacity:0;transition:opacity .1s;
+  background:var(--surface);color:var(--ink);border:1px solid var(--rule);border-radius:6px;
+  padding:8px 11px;font-size:12px;line-height:1.5;box-shadow:0 6px 22px rgba(0,0,0,.16);
+  max-width:250px;font-variant-numeric:tabular-nums}
+#tip .tt{font-weight:600;margin-bottom:3px;white-space:normal}
+#tip .tr{display:flex;justify-content:space-between;gap:14px;font-family:var(--mono);font-size:11.5px}
+#tip .tr b{font-weight:500}
+.hit{cursor:crosshair}
+footer{border-top:1px solid var(--rule);padding-top:24px;font-size:13px;color:var(--muted);
+  display:flex;flex-direction:column;gap:6px}
+@media (max-width:640px){
+  .finding{grid-template-columns:1fr;gap:10px}
+  .finding .sev{flex-direction:row;align-items:center;gap:10px}
+  .wrap{gap:34px;padding-block:32px 56px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">IP First Response &middot; ai_referral_ctr.xlsx &middot; checked 11 Sep 2026</div>
+  <h1>What the AI referral workbook actually says</h1>
+  <p class="lede">Every formula in the workbook was recomputed from the <span class="cell">Sessions</span> rows and compared against its cached result. The arithmetic is clean. Three of the numbers it presents as headlines are not, because they divide two populations that don&rsquo;t cover the same days &mdash; or the same AI assistants.</p>
+  <div class="verdict">
+    <span class="chip ok"><i class="dot"></i>Formulas &amp; joins verified &mdash; 0 mismatches</span>
+    <span class="chip cr"><i class="dot"></i>2 headline figures overstated</span>
+    <span class="chip wr"><i class="dot"></i>4 caveats to correct before quoting</span>
+  </div>
+</header>
+
+<section style="display:flex;flex-direction:column;gap:16px">
+  <div class="stats">
+    <div class="stat"><span class="k">Bing AI citations</span><span class="v">9,202</span><span class="s">by page &middot; 10,465 by day</span></div>
+    <div class="stat"><span class="k">AI assistant sessions</span><span class="v">443</span><span class="s">90.5% from ChatGPT</span></div>
+    <div class="stat flag"><span class="k">Headline &ldquo;CTR&rdquo;</span><span class="v">4.81%</span><span class="s">spans mismatched windows</span></div>
+    <div class="stat"><span class="k">Coverage-matched</span><span class="v" style="color:var(--c3)">4.10%</span><span class="s">424 &divide; 10,342 over 117 shared days</span></div>
+    <div class="stat"><span class="k">Pages in scope</span><span class="v">104</span><span class="s">88 cited &middot; 75 landed &middot; 59 both</span></div>
+  </div>
+  <p class="note"><b>How this was checked.</b> Every <span class="cell">SUMIFS</span>, <span class="cell">SUBTOTAL</span>, <span class="cell">AVERAGEIFS</span>, <span class="cell">MINIFS</span>/<span class="cell">MAXIFS</span>, share and CTR cell was rebuilt independently from the 404 <span class="cell">Sessions</span> rows and compared to the value Excel had cached. 104 page rows, 121 day rows, 18 week rows, 4 referrer rows: <b>zero disagreements</b>. Date parts, ISO weeks, weekday and weekend flags, source-coverage flags and the de-duplication flag in <span class="cell">Sessions!J</span> all reproduce exactly. No error cells; the six post-2007 functions carry their <span class="cell">_xlfn.</span> prefixes correctly, and the totals use <span class="cell">SUBTOTAL</span> so the CTR really does reflow when you filter. The problems below are about what the numbers mean, not whether they add up.</p>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:8px">
+  <div class="eyebrow">Findings</div>
+  <h2>Six things to fix before any of this goes in a deck</h2>
+  <div class="findings">
+
+    <div class="finding">
+      <div class="sev"><span class="chip cr"><i class="dot"></i>Overstated</span><span class="src">Weekly!K19</span></div>
+      <div>
+        <h3>The last week&rsquo;s CTR is roughly double the real figure</h3>
+        <p class="body">Week 37 reports <b>16.0%</b> &mdash; 36 sessions &divide; 225 citations. But 19 of those 36 sessions fall on 9&ndash;11 September, three days where Bing supplied no citations at all. The numerator covers five days; the denominator covers two. On the two days both sources cover, the week is <b>7.6%</b>. The same bug runs the other way in Week 20, where 14 May contributes 123 citations and no sessions: <b>0.77%</b> reported against <b>1.47%</b> coverage-matched. The README tells the reader to &ldquo;filter to <span class="cell">both</span> before comparing the two series&rdquo; &mdash; the Weekly tab never does.</p>
+        <p class="fix">Restrict <span class="cell">Weekly!E:F</span> to <span class="cell">Daily!Q = "both"</span>, or drop the two partial weeks from any trend chart.</p>
+      </div>
+    </div>
+
+    <div class="finding">
+      <div class="sev"><span class="chip cr"><i class="dot"></i>Overstated</span><span class="src">README!B8, Pages!K106</span></div>
+      <div>
+        <h3>The headline 4.81% carries the same mismatch</h3>
+        <p class="body">443 sessions run 15 May &ndash; 11 Sep; 9,202 page-level citations run 14 May &ndash; 8 Sep. Restricted to the 117 days both sources cover, it is <b>424 &divide; 10,342 = 4.10%</b>. Choosing the daily citation total instead (<span class="cell">README!B10</span>) gives 4.23%, and dropping the 30 July spike gives 4.49% &mdash; so the &ldquo;overall CTR&rdquo; moves between <b>4.10% and 4.81%</b> purely on which denominator and window you pick. That spread is wider than most of the week-to-week movement the workbook is being used to show.</p>
+      </div>
+    </div>
+
+    <div class="finding">
+      <div class="sev"><span class="chip cr"><i class="dot"></i>Wrong premise</span><span class="src">README!B9, Pages!L106</span></div>
+      <div>
+        <h3>The &ldquo;Copilot-only, apples-to-apples&rdquo; CTR is not apples-to-apples</h3>
+        <p class="body">It divides <b>3 Copilot sessions</b> by <b>all 9,202 Bing citations</b> &mdash; and those citations come from Copilot <em>plus</em> Bing AI summaries <em>plus</em> Microsoft&rsquo;s partner integrations. The numerator is one surface, the denominator is three, so 0.03% understates the true Copilot rate by an unknown multiple. With n = 3 sessions across 2 pages it carries no signal either way. The README presents this as the trustworthy version of the headline; it is the least trustworthy number in the workbook.</p>
+        <p class="fix">Either split Bing&rsquo;s citation export by surface, or delete the row. Don&rsquo;t caveat it &mdash; a caveated 0.03% still gets quoted.</p>
+      </div>
+    </div>
+
+    <div class="finding">
+      <div class="sev"><span class="chip wr"><i class="dot"></i>Read with care</span><span class="src">Pages!K2:K105</span></div>
+      <div>
+        <h3>Page-level CTR is meaningless below about 100 citations</h3>
+        <p class="body">Of the 59 pages with both citations and landings, <b>7 exceed 50%</b> and <b>two exceed 100%</b>: &ldquo;Is my business name my IP?&rdquo; reads <b>233%</b> (42 sessions, 18 citations) and &ldquo;Respond to an opposition&rdquo; reads <b>200%</b> (4 sessions, 2 citations). A ratio above 100% is impossible for a real click-through rate and is the clearest available proof that the two populations don&rsquo;t nest: ChatGPT sends the traffic, Bing counts the citations. The column is fine as a <em>relative</em> signal on high-volume pages and noise everywhere else.</p>
+      </div>
+    </div>
+
+    <div class="finding">
+      <div class="sev"><span class="chip wr"><i class="dot"></i>Understated</span><span class="src">README!B30, B24</span></div>
+      <div>
+        <h3>Two README caveats are milder than the data</h3>
+        <p class="body">The 30 July spike is <b>609 citations &mdash; 7.4&times; the median day</b> of 82.5, not the &ldquo;roughly six times&rdquo; the README states. Excluding it lifts all-period CTR from 4.23% to 4.49%, and July from 2.34% to 2.94%. Separately, the README says &ldquo;roughly a third of ChatGPT landings would not have matched&rdquo; without URL normalisation; in fact <b>281 of 363 ChatGPT rows (77%)</b> have a raw landing URL that differs from its canonical form, and 259 of those resolve to a page that <em>is</em> in the Bing cited set. Normalisation is doing far more work than the note admits &mdash; which makes it the single assumption most worth auditing.</p>
+      </div>
+    </div>
+
+    <div class="finding">
+      <div class="sev"><span class="chip wr"><i class="dot"></i>Mislabelled</span><span class="src">Weekly!L20, Sessions grain</span></div>
+      <div>
+        <h3>Two labels don&rsquo;t describe what the cell computes</h3>
+        <p class="body"><span class="cell">Weekly!L20</span> is headed &ldquo;CTR (mean of daily CTRs)&rdquo; but computes the mean of <em>18 weekly means</em>, weighting a 4-day week like a 7-day one: 5.02% against a true daily mean of 4.99%. Small here, but it is an average of averages wearing another name. And the README describes <span class="cell">Sessions</span> as page-by-day-by-referrer grain &mdash; <b>29 key combinations appear twice</b>, separated only by <span class="cell">raw_landing_url</span>. Totals are unaffected because <span class="cell">SUMIFS</span> sums every matching row, but any join that assumes one row per key will double-count. <span class="cell">Pages!R106</span> is a third case: it sums per-page day counts to 368, which double-counts days &mdash; the site saw sessions on <b>98 distinct dates</b>.</p>
+      </div>
+    </div>
+
+    <div class="finding">
+      <div class="sev"><span class="chip ok"><i class="dot"></i>Checks out</span><span class="src">README!B29, B33</span></div>
+      <div>
+        <h3>The caveats the README gets exactly right</h3>
+        <p class="body">The two Bing exports really do disagree: <b>10,465 by day against 9,202 by page &mdash; 1,263 citations, 12.07%</b> of the daily total, which matches the README&rsquo;s &ldquo;about 12 percent&rdquo; precisely. The truncated-link claim is exact too: <b>two</b> ChatGPT sessions (30 July and 1 September) landed on <span class="cell">&hellip;create-ip-</span> with the <span class="cell">-0</span> suffix cut off, and served &ldquo;Page not found&rdquo;; three more raw URLs are cut mid-<span class="cell">?utm</span> parameter. The page counts (88 cited, 75 landed), all four referrer totals, the distinct-page counts and the source-coverage flags all reproduce exactly.</p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:8px">
+  <div class="eyebrow">The observations</div>
+  <h2>Six charts, with the caveats drawn in</h2>
+  <p class="note" style="margin-bottom:8px">Each chart below shows the days or pages where the underlying sources actually overlap, and marks the ones where they don&rsquo;t &mdash; because that is where every one of the findings above lives.</p>
+</section>
+
+<figure>
+  <figcaption>
+    <span class="t">Citations and sessions never moved together</span>
+    <span class="d">Daily Bing AI citations against daily AI-assistant sessions, 14 May &ndash; 11 Sep 2026. Two panels, one shared time axis &mdash; not two scales on one plot, because the measures differ by two orders of magnitude. The shaded bands are the days only one source covers.</span>
+  </figcaption>
+  <div class="plot"><svg id="c-daily" role="img" aria-label="Daily citations peak at 609 on 30 July while daily sessions stay between 0 and 21 throughout"></svg></div>
+  <div class="legend">
+    <span><i style="background:var(--c1)"></i>Bing AI citations &middot; upper panel</span>
+    <span><i style="background:var(--c2)"></i>AI assistant sessions &middot; lower panel</span>
+    <span><i class="sq" style="background:var(--shade)"></i>Only one source covers these days</span>
+  </div>
+  <p class="src">Daily!H, Daily!J &middot; 121 days</p>
+</figure>
+
+<figure>
+  <figcaption>
+    <span class="t">Three defensible weekly CTRs, and they disagree</span>
+    <span class="d">The workbook offers two averaging methods and the README asks for a third restriction it never applies. All three are plotted on one axis. They stay within a point of each other through the middle of the series and then split apart at both ends, where the sources stop overlapping. The coverage-matched line runs exactly under the reported one in all 16 complete weeks &mdash; it only separates where a week contains days one source doesn&rsquo;t reach.</span>
+  </figcaption>
+  <div class="plot"><svg id="c-weekly" role="img" aria-label="Weekly CTR by three methods; the final week reads 16.0 percent by weekly totals but 7.6 percent once restricted to days both sources cover"></svg></div>
+  <div class="legend">
+    <span><i style="background:var(--c1)"></i>Weekly totals &middot; <span class="cell">Weekly!K</span></span>
+    <span><i style="background:var(--c2)"></i>Mean of daily CTRs &middot; <span class="cell">Weekly!L</span></span>
+    <span><i style="background:var(--c3);opacity:.55;height:5px"></i>Weekly totals, coverage-matched &middot; recomputed</span>
+    <span><i class="sq" style="background:var(--shade)"></i>Partial week</span>
+  </div>
+  <p class="src">Weekly!E:L, recomputed against Daily!Q &middot; 18 ISO weeks</p>
+  <details>
+    <summary>Week-by-week table</summary>
+    <div class="tw"><table id="t-weekly"></table></div>
+  </details>
+</figure>
+
+<figure>
+  <figcaption>
+    <span class="t">Where Bing cites is not where people land</span>
+    <span class="d">The twelve most-cited pages, each showing its share of all 9,202 citations against its share of all 443 sessions. If citation visibility converted evenly, the two bars would match. &ldquo;Copyright infringement&rdquo; takes <b>28.8% of citations and 5.6% of sessions</b>; the homepage does the reverse.</span>
+  </figcaption>
+  <div class="plot"><svg id="c-top" role="img" aria-label="Grouped bars comparing each top page's share of citations with its share of sessions"></svg></div>
+  <div class="legend">
+    <span><i style="background:var(--c1)"></i>Share of citations</span>
+    <span><i style="background:var(--c2)"></i>Share of sessions</span>
+  </div>
+  <p class="src">Pages!M, Pages!N &middot; top 12 of 104 by citations</p>
+</figure>
+
+<figure>
+  <figcaption>
+    <span class="t">Page CTR is an artefact of small denominators</span>
+    <span class="d">The 59 pages with both citations and landings, on log scales. The dashed diagonal is a 100% ratio &mdash; impossible for a real click-through rate, and two pages sit above it. The solid diagonal is the coverage-matched site rate of 4.10%. Notice the spread narrowing as citations grow: every wild ratio lives under 100 citations.</span>
+  </figcaption>
+  <div class="plot"><svg id="c-scatter" role="img" aria-label="Log-log scatter of citations against sessions per page, with two pages above the 100 percent ratio line"></svg></div>
+  <div class="legend">
+    <span><i class="sq" style="background:var(--c1);border-radius:99px"></i>One page</span>
+    <span><i class="sq" style="background:var(--crit);border-radius:99px"></i>Ratio above 100% &mdash; impossible for a true CTR</span>
+    <span><i style="background:var(--crit);height:0;border-top:2px dashed var(--crit)"></i>Diagonal: a 100% ratio</span>
+    <span><i style="background:var(--ink-2)"></i>Diagonal: the 4.10% coverage-matched site rate</span>
+  </div>
+  <p class="src">Pages!E, Pages!F &middot; 59 &ldquo;cited and landed&rdquo; pages; 29 cited-only and 16 landing-only pages cannot be plotted on log axes</p>
+</figure>
+
+<figure>
+  <figcaption>
+    <span class="t">The numerator and the denominator describe different assistants</span>
+    <span class="d">This is the structural reason no CTR in the workbook is a real click-through rate. Nine in ten sessions arrive from ChatGPT, which contributes nothing to Bing&rsquo;s citation count &mdash; and Copilot, the one assistant that does appear in both, supplied three sessions in four months.</span>
+  </figcaption>
+  <div class="plot"><svg id="c-ref" role="img" aria-label="ChatGPT supplies 90.5 percent of sessions but zero percent of the citation count, which is entirely Microsoft surfaces"></svg></div>
+  <p class="src">Referrers!B, README!B28 &middot; 443 sessions, 9,202 citations</p>
+</figure>
+
+<figure>
+  <figcaption>
+    <span class="t">Only 57% of pages appear in both sources</span>
+    <span class="d">The outer join across 104 canonical URLs. A CTR exists only for the 59 in the middle; the 29 cited-but-never-landed pages are the ones worth acting on, and the 16 landing-only pages include the truncated URL that serves a 404.</span>
+  </figcaption>
+  <div class="plot"><svg id="c-cov" role="img" aria-label="104 pages split into 29 cited only, 59 cited and landed, and 16 landings only"></svg></div>
+  <p class="src">Pages!O &middot; 104 canonical URLs</p>
+</figure>
+
+<footer>
+  <p>Validation recomputed every formula cell in <span class="cell">ai_referral_ctr.xlsx</span> from the <span class="cell">Sessions</span> source rows using openpyxl, and compared against the values Excel had cached. Source ranges: Bing AI Performance 14 May &ndash; 8 Sep 2026; Mixpanel first-touch sessions 15 May &ndash; 11 Sep 2026.</p>
+  <p class="dim">Charts read the workbook&rsquo;s own figures except the coverage-matched series, which is recomputed from <span class="cell">Daily!Q</span>.</p>
+</footer>
+
+</div>
+<div id="tip" role="status" aria-live="polite"></div>
+<script>
+const DATA = {"headline":{"citPage":9202,"citDay":10465,"sessions":443,"ctrPage":0.04814170832427733,"ctrDay":0.042331581462016245,"ctrBoth":0.04099787275188552,"ctrBothSess":424,"ctrBothCit":10342,"copilotCtr":0.0003260160834601174,"pagesCited":88,"pagesLanded":75,"pagesTotal":104,"ctrExOutlier":0.044947240259740256,"outlier":609,"medianDaily":82.5},"daily":[["05-14",123,0,"citations only"],["05-15",34,1,"both"],["05-16",23,1,"both"],["05-17",79,0,"both"],["05-18",54,1,"both"],["05-19",84,2,"both"],["05-20",64,2,"both"],["05-21",74,3,"both"],["05-22",28,2,"both"],["05-23",22,0,"both"],["05-24",23,0,"both"],["05-25",78,2,"both"],["05-26",51,4,"both"],["05-27",40,4,"both"],["05-28",48,4,"both"],["05-29",45,1,"both"],["05-30",8,0,"both"],["05-31",44,0,"both"],["06-01",90,1,"both"],["06-02",100,5,"both"],["06-03",114,1,"both"],["06-04",158,2,"both"],["06-05",168,0,"both"],["06-06",198,0,"both"],["06-07",69,1,"both"],["06-08",80,0,"both"],["06-09",103,1,"both"],["06-10",106,1,"both"],["06-11",83,2,"both"],["06-12",52,2,"both"],["06-13",35,2,"both"],["06-14",95,0,"both"],["06-15",108,5,"both"],["06-16",150,1,"both"],["06-17",112,0,"both"],["06-18",105,0,"both"],["06-19",69,0,"both"],["06-20",25,0,"both"],["06-21",141,1,"both"],["06-22",101,3,"both"],["06-23",141,1,"both"],["06-24",127,3,"both"],["06-25",66,0,"both"],["06-26",46,3,"both"],["06-27",36,1,"both"],["06-28",80,0,"both"],["06-29",121,0,"both"],["06-30",73,0,"both"],["07-01",90,1,"both"],["07-02",95,2,"both"],["07-03",27,4,"both"],["07-04",46,1,"both"],["07-05",31,1,"both"],["07-06",141,3,"both"],["07-07",82,2,"both"],["07-08",27,1,"both"],["07-09",57,0,"both"],["07-10",24,1,"both"],["07-11",12,0,"both"],["07-12",84,1,"both"],["07-13",105,2,"both"],["07-14",87,1,"both"],["07-15",72,2,"both"],["07-16",56,1,"both"],["07-17",78,2,"both"],["07-18",16,3,"both"],["07-19",108,0,"both"],["07-20",161,1,"both"],["07-21",160,3,"both"],["07-22",78,9,"both"],["07-23",153,4,"both"],["07-24",66,4,"both"],["07-25",30,0,"both"],["07-26",89,2,"both"],["07-27",111,3,"both"],["07-28",68,3,"both"],["07-29",145,5,"both"],["07-30",609,6,"both"],["07-31",79,2,"both"],["08-01",39,1,"both"],["08-02",90,1,"both"],["08-03",63,3,"both"],["08-04",153,4,"both"],["08-05",128,3,"both"],["08-06",78,1,"both"],["08-07",89,2,"both"],["08-08",63,5,"both"],["08-09",128,3,"both"],["08-10",119,14,"both"],["08-11",110,11,"both"],["08-12",105,8,"both"],["08-13",109,12,"both"],["08-14",65,16,"both"],["08-15",27,0,"both"],["08-16",114,9,"both"],["08-17",89,4,"both"],["08-18",76,3,"both"],["08-19",92,12,"both"],["08-20",72,21,"both"],["08-21",26,11,"both"],["08-22",28,11,"both"],["08-23",78,5,"both"],["08-24",143,6,"both"],["08-25",134,6,"both"],["08-26",111,8,"both"],["08-27",97,9,"both"],["08-28",125,12,"both"],["08-29",53,1,"both"],["08-30",84,9,"both"],["08-31",165,13,"both"],["09-01",163,9,"both"],["09-02",109,5,"both"],["09-03",107,16,"both"],["09-04",32,10,"both"],["09-05",48,3,"both"],["09-06",67,7,"both"],["09-07",104,10,"both"],["09-08",121,7,"both"],["09-09",null,7,"sessions only"],["09-10",null,11,"sessions only"],["09-11",null,1,"sessions only"]],"weekly":[["W20",259,2,0.00772200772200772,0.0182225063938619,0.014705882352941176,3,4,"2026-05-11"],["W21",349,10,0.0286532951289398,0.0265067363281649,0.02865329512893983,7,7,"2026-05-18"],["W22",314,15,0.0477707006369427,0.0442325648208001,0.04777070063694268,7,7,"2026-05-25"],["W23",897,10,0.0111482720178372,0.0138620032009946,0.011148272017837236,7,7,"2026-06-01"],["W24",554,8,0.0144404332129964,0.0198347830392561,0.01444043321299639,7,7,"2026-06-08"],["W25",710,7,0.00985915492957747,0.00857930879207475,0.009859154929577466,7,7,"2026-06-15"],["W26",597,11,0.0184254606365159,0.0219160550292586,0.018425460636515914,7,7,"2026-06-22"],["W27",483,9,0.0186335403726708,0.0334727265413026,0.018633540372670808,7,7,"2026-06-29"],["W28",427,8,0.0187353629976581,0.0194679007507979,0.01873536299765808,7,7,"2026-07-06"],["W29",522,11,0.0210727969348659,0.0413311168853041,0.0210727969348659,7,7,"2026-07-13"],["W30",737,23,0.0312075983717775,0.0356525081538475,0.031207598371777476,7,7,"2026-07-20"],["W31",1141,21,0.0184049079754601,0.025364034557664,0.018404907975460124,7,7,"2026-07-27"],["W32",702,21,0.0299145299145299,0.0336136201095247,0.029914529914529916,7,7,"2026-08-03"],["W33",649,70,0.107858243451464,0.104147213244024,0.10785824345146379,7,7,"2026-08-10"],["W34",461,67,0.145336225596529,0.198079369106748,0.14533622559652928,7,7,"2026-08-17"],["W35",747,51,0.0682730923694779,0.0676572171798425,0.06827309236947791,7,7,"2026-08-24"],["W36",691,63,0.0911722141823444,0.115554926366851,0.09117221418234443,7,7,"2026-08-31"],["W37",225,36,0.16,0.0770025429116338,0.07555555555555556,2,5,"2026-09-07"]],"referrers":[{"name":"ChatGPT","sessions":401,"share":0.905191873589165,"pages":70},{"name":"Claude","sessions":22,"share":0.0496613995485327,"pages":14},{"name":"Gemini","sessions":17,"share":0.0383747178329571,"pages":9},{"name":"Copilot","sessions":3,"share":0.00677200902934537,"pages":2}],"sections":[{"name":"options","c":6374,"s":345,"n":83,"ctr":0.054126137433322875},{"name":"blogs","c":2479,"s":31,"n":10,"ctr":0.012505042355788625},{"name":"(top level)","c":205,"s":40,"n":9,"ctr":0.1951219512195122},{"name":"(home)","c":138,"s":24,"n":1,"ctr":0.17391304347826086},{"name":"chat subdomain","c":6,"s":3,"n":1,"ctr":0.5}],"status":{"cited and landed":59,"cited, no landings":29,"landings, not cited":16},"top":[["Copyright infringement",0.287654857639644,0.0564334085778781,2647,25],["Copyright licensing and rights management organisations in Australia",0.154857639643556,0.00225733634311512,1425,1],["A simple breakdown of names and trade marks",0.0878069984785916,0.0406320541760722,808,18],["Register your trade mark",0.0466202999347968,0.0428893905191874,429,19],["Trade mark infringement",0.0357530971527929,0.0293453724604966,329,13],["(not in Mixpanel) infringement 101 what ip infringement",0.0321669202347316,0,296,0],["Check your idea against existing patents",0.0198869810910672,0.0474040632054176,183,21],["Register your right to use your design exclusively",0.0192349489241469,0.0225733634311512,177,10],["Homepage",0.0149967398391654,0.054176072234763,138,24],["Infringement 101",0.0146707237557053,0.00451467268623025,135,2],["Remove a trade mark from the register",0.0133666594218648,0.0090293453724605,123,4],["Familiarise yourself with IP laws",0.0121712671158444,0.0158013544018059,112,7]],"scatter":[["Copyright infringement",2647,25,"options"],["Copyright licensing and rights management organisations in Australia",1425,1,"blogs"],["A simple breakdown of names and trade marks",808,18,"blogs"],["Register your trade mark",429,19,"options"],["Trade mark infringement",329,13,"options"],["Check your idea against existing patents",183,21,"options"],["Register your right to use your design exclusively",177,10,"options"],["Homepage",138,24,"(home)"],["Infringement 101",135,2,"(top level)"],["Remove a trade mark from the register",123,4,"options"],["Familiarise yourself with IP laws",112,7,"options"],["Patent infringement",109,3,"options"],["Unregistered trade marks",100,27,"options"],["I\u2019ve got an ABN and a registered business name \u2013 do I need a registered trade mark too?",90,5,"blogs"],["Develop a strategy to manage your IP",85,5,"options"],["Seek binding, authoritative decisions",77,1,"options"],["Design infringement",75,11,"options"],["How to avoid infringing others' intellectual property",75,4,"options"],["Report a scam, fraud or risk to public interest",71,6,"options"],["What to do if someone infringes your IP",71,1,"options"],["Dispute a domain name that infringes your trade mark",67,3,"options"],["Considerations when using artificial intelligence to create IP",60,44,"options"],["Free IP tools you can use",53,1,"options"],["Check your product against existing designs",51,11,"options"],["Resolve IP issues with the help of a third party",49,2,"options"],["Challenge the registration of a new trade mark",48,5,"options"],["Stop infringing goods entering the country",43,3,"options"],["Apply for a patent to protect your invention from being copied",41,2,"options"],["Tips and tricks for searching for an existing right",40,14,"(top level)"],["What is IP and how does it protect me?",38,5,"options"],["Remove a trade mark from the register",36,2,"options"],["Seek binding, authoritative decisions",35,5,"options"],["Challenge a new or amended patent",34,2,"options"],["How to identify intellectual property in your business (A step-by-step guide for SMEs)",27,3,"blogs"],["Obtain legal advice on enforcement options",25,3,"options"],["Challenge the registration of a new trade mark to defend your right",23,1,"options"],["Respond to an unjustified threat",21,3,"options"],["Can I buy, sell or license IP?",19,1,"options"],["Is my business name my IP?",18,42,"options"],["What can I do if I disagree with IP Australia\u2019s examination decision?",18,1,"options"],["Check if someone else already owns a word, logo or idea you want",16,4,"options"],["Demand the other party stops infringing in writing",15,6,"options"],["Help customers differentiate between your products and lookalikes",12,1,"options"],["Building a strong foundation: Practical IP steps for start-ups",10,2,"blogs"],["Explore opportunities by licensing your IP",10,1,"options"],["Register your unregistered trade mark",7,4,"options"],["About the AI Chatbot",7,2,"(top level)"],["Chatbot",6,3,"chat subdomain"],["Enforcing a 'filed' patent",6,1,"options"],["Choose to rebrand to avoid potential IP conflicts",5,1,"options"],["Receiving a letter of demand",5,1,"options"],["The Toyota story: What can SMEs learn from Toyota\u2019s approach to counterfeit products?",5,1,"options"],["Use your trade mark prominently to build recognition and protection",4,3,"options"],["What do I do if someone copies my stuff?",4,1,"options"],["Prevent risks to public interest",3,2,"options"],["Respond to an opposition filed against your trade mark",2,4,"options"],["Naming your tech-startup after a person? Read this first",2,1,"blogs"],["Oppose an IP infringement notice from an online marketplace",2,1,"options"],["Joint custody: The risks of sharing IP",1,1,"blogs"]]};
+const NS = "http://www.w3.org/2000/svg";
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const pct = (v,d=1) => (v*100).toFixed(d) + "%";
+const num = v => v.toLocaleString("en-AU");
+const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+function svgSet(id, w, h) {
+  const s = document.getElementById(id);
+  s.setAttribute("viewBox", `0 0 ${w} ${h}`);
+  s.setAttribute("preserveAspectRatio", "xMidYMid meet");
+  return s;
+}
+function tx(x, y, str, o = {}) {
+  return `<text x="${x}" y="${y}" fill="${o.fill||'var(--muted)'}" font-size="${o.size||10.5}" `
+    + `font-family="${o.mono===false?'var(--sans)':'var(--mono)'}" font-weight="${o.weight||400}" `
+    + `text-anchor="${o.anchor||'start'}"${o.baseline?` dominant-baseline="${o.baseline}"`:''}`
+    + `${o.ls?` letter-spacing="${o.ls}"`:''}>${esc(str)}</text>`;
+}
+function gridline(x1, y, x2) {
+  return `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="var(--grid)" stroke-width="1" shape-rendering="crispEdges"/>`;
+}
+
+/* ---------- tooltip ---------- */
+const tip = document.getElementById("tip");
+function bindTips(root) {
+  root.querySelectorAll("[data-tip]").forEach(n => {
+    n.addEventListener("pointerenter", e => {
+      tip.innerHTML = n.getAttribute("data-tip");
+      tip.style.opacity = 1;
+      move(e);
+    });
+    n.addEventListener("pointermove", move);
+    n.addEventListener("pointerleave", () => { tip.style.opacity = 0; });
+  });
+  function move(e) {
+    const r = tip.getBoundingClientRect();
+    let x = e.clientX + 14, y = e.clientY - r.height - 12;
+    if (x + r.width > innerWidth - 8) x = e.clientX - r.width - 14;
+    if (y < 8) y = e.clientY + 18;
+    tip.style.left = x + "px"; tip.style.top = y + "px";
+  }
+}
+const ttip = (title, rows) => esc(`<div class="tt">${title}</div>` + rows.map(r =>
+  `<div class="tr"><span>${r[0]}</span><b>${r[1]}</b></div>`).join(""))
+  .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&amp;/g, "&");
+
+/* ---------- 1. daily, two stacked panels ---------- */
+(function () {
+  const d = DATA.daily, n = d.length;
+  const W = 900, ML = 48, MR = 20;
+  const PW = W - ML - MR;
+  const aT = 42, aH = 150, bT = 234, bH = 86, H = 350;
+  const x = i => ML + i * PW / (n - 1);
+  const cMax = 650, sMax = 24;
+  const ya = v => aT + aH - v / cMax * aH;
+  const yb = v => bT + bH - v / sMax * bH;
+  let s = "";
+
+  // coverage bands
+  d.forEach((r, i) => {
+    if (r[3] === "both") return;
+    const w = Math.max(5, PW / (n - 1));
+    s += `<rect x="${(x(i) - w / 2).toFixed(1)}" y="${aT}" width="${w.toFixed(1)}" height="${bT + bH - aT}" fill="var(--shade)"/>`;
+  });
+  // grids
+  [0, 150, 300, 450, 600].forEach(v => { s += gridline(ML, ya(v), W - MR) + tx(ML - 8, ya(v) + 3.5, num(v), { anchor: "end" }); });
+  [0, 10, 20].forEach(v => { s += gridline(ML, yb(v), W - MR) + tx(ML - 8, yb(v) + 3.5, num(v), { anchor: "end" }); });
+  // median reference
+  const med = 82.5;
+  s += `<line x1="${ML}" y1="${ya(med)}" x2="${W - MR}" y2="${ya(med)}" stroke="var(--c1)" stroke-width="1" stroke-opacity=".45"/>`;
+  s += `<line x1="${(ML + 130).toFixed(1)}" y1="${(ya(330)).toFixed(1)}" x2="${(ML + 130).toFixed(1)}" y2="${ya(med).toFixed(1)}" stroke="var(--c1)" stroke-width="1" stroke-opacity=".45"/>`;
+  s += tx(ML + 136, ya(330) + 4, "median day — 83 citations", { fill: "var(--c1)", size: 10.5 });
+
+  // citations area + line
+  const pts = d.map((r, i) => r[1] == null ? null : [x(i), ya(r[1])]);
+  let area = "", line = "", open = false;
+  pts.forEach(p => {
+    if (!p) { open = false; return; }
+    if (!open) { area += `M${p[0].toFixed(1)},${(aT + aH).toFixed(1)}L${p[0].toFixed(1)},${p[1].toFixed(1)}`; line += `M${p[0].toFixed(1)},${p[1].toFixed(1)}`; open = true; }
+    else { area += `L${p[0].toFixed(1)},${p[1].toFixed(1)}`; line += `L${p[0].toFixed(1)},${p[1].toFixed(1)}`; }
+  });
+  const last = pts.filter(Boolean).pop(), first = pts.filter(Boolean)[0];
+  area += `L${last[0].toFixed(1)},${(aT + aH).toFixed(1)}Z`;
+  s += `<path d="${area}" fill="var(--c1-soft)"/>`;
+  s += `<path d="${line}" fill="none" stroke="var(--c1)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+
+  // sessions bars
+  const bw = Math.max(2.2, PW / n - 1.6);
+  d.forEach((r, i) => {
+    if (!r[2]) return;
+    const h = Math.max(2, bT + bH - yb(r[2]));
+    s += `<rect x="${(x(i) - bw / 2).toFixed(1)}" y="${yb(r[2]).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="1.5" fill="var(--c2)"/>`;
+  });
+  // baselines
+  s += `<line x1="${ML}" y1="${aT + aH}" x2="${W - MR}" y2="${aT + aH}" stroke="var(--axis)" stroke-width="1"/>`;
+  s += `<line x1="${ML}" y1="${bT + bH}" x2="${W - MR}" y2="${bT + bH}" stroke="var(--axis)" stroke-width="1"/>`;
+
+  // outlier callout
+  const oi = d.findIndex(r => r[1] === 609);
+  s += `<circle cx="${x(oi).toFixed(1)}" cy="${ya(609).toFixed(1)}" r="4" fill="var(--c1)" stroke="var(--surface)" stroke-width="2"/>`;
+  s += `<line x1="${(x(oi) + 8).toFixed(1)}" y1="${(ya(609) + 2).toFixed(1)}" x2="${(x(oi) + 40).toFixed(1)}" y2="${(ya(609) + 2).toFixed(1)}" stroke="var(--axis)" stroke-width="1"/>`;
+  s += tx(x(oi) + 45, ya(609) + 5.5, "30 Jul — 609, 7.4× median", { fill: "var(--ink-2)", size: 11 });
+  // coverage labels
+  s += tx(ML, aT - 26, "BING AI CITATIONS PER DAY", { size: 9.5, ls: ".1em", weight: 500, fill: "var(--c1)" });
+  s += tx(ML + 2, aT - 9, "↓ 14 May: no Mixpanel", { size: 9.5 });
+  s += tx(W - MR - 2, aT - 9, "9–11 Sep: no Bing ↓", { size: 9.5, anchor: "end" });
+  s += tx(ML, bT - 11, "AI ASSISTANT SESSIONS PER DAY", { size: 9.5, ls: ".1em", weight: 500, fill: "var(--c2)" });
+
+  // x ticks — month starts
+  d.forEach((r, i) => {
+    const [mm, dd] = r[0].split("-");
+    if (dd !== "01" && i !== 0) return;
+    s += `<line x1="${x(i).toFixed(1)}" y1="${bT + bH}" x2="${x(i).toFixed(1)}" y2="${bT + bH + 4}" stroke="var(--axis)" stroke-width="1"/>`;
+    s += tx(x(i), bT + bH + 16, i === 0 ? "14 May" : "1 " + MON[+mm - 1], { anchor: i === 0 ? "start" : "middle" });
+  });
+  s += tx(W - MR, bT + bH + 16, "11 Sep", { anchor: "end" });
+
+  // hover hit strips
+  d.forEach((r, i) => {
+    const w = PW / (n - 1);
+    const rows = [["Citations", r[1] == null ? "no data" : num(r[1])], ["Sessions", num(r[2])]];
+    if (r[3] !== "both") rows.push(["Coverage", r[3]]);
+    s += `<rect class="hit" x="${(x(i) - w / 2).toFixed(1)}" y="${aT}" width="${w.toFixed(1)}" height="${bT + bH - aT}" fill="transparent" `
+      + `data-tip="${ttip(r[0].replace("-", " ") + " 2026", rows).replace(/"/g, "&quot;")}"/>`;
+  });
+  const el = svgSet("c-daily", W, H); el.innerHTML = s; bindTips(el);
+})();
+
+/* ---------- 2. weekly CTR, three methods ---------- */
+(function () {
+  const w = DATA.weekly, n = w.length;
+  const W = 900, ML = 44, MR = 136, H = 306, T = 22, B = 250;
+  const PW = W - ML - MR;
+  const x = i => ML + i * PW / (n - 1);
+  const yMax = .23, y = v => B - v / yMax * (B - T);
+  let s = "";
+  w.forEach((r, i) => { if (r[6] !== r[7]) {
+    const bw = PW / (n - 1);
+    s += `<rect x="${(x(i) - bw / 2).toFixed(1)}" y="${T}" width="${bw.toFixed(1)}" height="${B - T}" fill="var(--shade)"/>`;
+  }});
+  [0, .05, .10, .15, .20].forEach(v => { s += gridline(ML, y(v), ML + PW) + tx(ML - 8, y(v) + 3.5, pct(v, 0), { anchor: "end" }); });
+  // draw order: coverage-matched as a wide underlay (it sits exactly under the reported
+  // series in the 16 complete weeks), then the two reported series on top.
+  const series = [[5, "var(--c3)", 5.5, .45], [4, "var(--c2)", 2, 1], [3, "var(--c1)", 2, 1]];
+  series.forEach(([k, col, wd, op]) => {
+    const p = w.map((r, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(r[k]).toFixed(1)}`).join("");
+    s += `<path d="${p}" fill="none" stroke="${col}" stroke-width="${wd}" stroke-opacity="${op}" stroke-linejoin="round" stroke-linecap="round"/>`;
+  });
+  [[4, "var(--c2)"], [3, "var(--c1)"], [5, "var(--c3)"]].forEach(([k, col]) => w.forEach((r, i) => {
+    const partial = r[6] !== r[7];
+    if (!partial && k === 5) return;
+    s += `<circle cx="${x(i).toFixed(1)}" cy="${y(r[k]).toFixed(1)}" r="${partial ? 4.5 : 3}" fill="${partial ? 'var(--surface)' : col}" stroke="${col}" stroke-width="2"/>`;
+  }));
+  s += `<line x1="${ML}" y1="${B}" x2="${ML + PW}" y2="${B}" stroke="var(--axis)" stroke-width="1"/>`;
+  // direct endpoint labels
+  const e = w[n - 1], lab = [[3, "var(--c1)", "16.0% reported", y(e[3])], [4, "var(--c2)", "7.7% daily mean", y(e[4])], [5, "var(--c3)", "7.6% matched", y(e[5])]];
+  lab.sort((a, b) => a[3] - b[3]);
+  let prev = -99;
+  lab.forEach(l => { let yy = Math.max(l[3] + 4, prev + 16); prev = yy;
+    s += `<line x1="${(x(n - 1) + 5).toFixed(1)}" y1="${l[3].toFixed(1)}" x2="${(x(n - 1) + 14).toFixed(1)}" y2="${(yy - 4).toFixed(1)}" stroke="${l[1]}" stroke-width="1" stroke-opacity=".5"/>`;
+    s += tx(x(n - 1) + 18, yy, l[2], { fill: l[1], size: 11.5, weight: 500 }); });
+  // x labels
+  w.forEach((r, i) => { if (i % 3 !== 0 && i !== n - 1) return;
+    s += tx(x(i), B + 16, r[0], { anchor: i === n - 1 ? "end" : "middle" }); });
+  s += tx(ML, B + 34, "ISO WEEK, 2026", { size: 9.5, ls: ".1em", weight: 500 });
+  s += tx(x(0), T - 6, "partial", { size: 9.5, anchor: "middle" });
+  s += tx(x(n - 1), T - 6, "partial", { size: 9.5, anchor: "middle" });
+  // hit areas
+  w.forEach((r, i) => { const bw = PW / (n - 1);
+    s += `<rect class="hit" x="${(x(i) - bw / 2).toFixed(1)}" y="${T}" width="${bw.toFixed(1)}" height="${B - T}" fill="transparent" data-tip="${
+      ttip(r[0] + " · week of " + r[8], [["Citations", num(r[1])], ["Sessions", num(r[2])],
+        ["Weekly totals", pct(r[3], 2)], ["Mean of daily", pct(r[4], 2)], ["Coverage-matched", pct(r[5], 2)],
+        ["Days both sources", r[6] + " of " + r[7]]]).replace(/"/g, "&quot;")}"/>`; });
+  const el = svgSet("c-weekly", W, H); el.innerHTML = s; bindTips(el);
+
+  // table
+  const t = document.getElementById("t-weekly");
+  t.innerHTML = "<thead><tr><th>ISO week</th><th>Citations</th><th>Sessions</th><th>Weekly totals</th><th>Mean of daily</th><th>Coverage-matched</th><th>Days both</th></tr></thead><tbody>"
+    + w.map(r => `<tr class="${r[6] !== r[7] ? 'part' : ''}"><td>${r[0]}${r[6] !== r[7] ? ' ⚠' : ''}</td><td>${num(r[1])}</td><td>${num(r[2])}</td>`
+      + `<td>${pct(r[3], 2)}</td><td>${pct(r[4], 2)}</td><td>${pct(r[5], 2)}</td><td>${r[6]} / ${r[7]}</td></tr>`).join("")
+    + `</tbody><tfoot><tr><td>All 18</td><td>${num(DATA.headline.citDay)}</td><td>${num(DATA.headline.sessions)}</td>`
+    + `<td>${pct(DATA.headline.ctrDay, 2)}</td><td>4.99%</td><td>${pct(DATA.headline.ctrBoth, 2)}</td><td>117 / 121</td></tr></tfoot>`;
+})();
+
+/* ---------- 3. top pages, grouped bars ---------- */
+(function () {
+  const rows = DATA.top, W = 900, LAB = 268, ML = LAB + 14, MR = 58, T = 26;
+  const BH = 10, GAP = 3, GRP = BH * 2 + GAP + 14;
+  const H = T + rows.length * GRP + 34;
+  const PW = W - ML - MR, xMax = .30;
+  const x = v => ML + v / xMax * PW;
+  let s = "";
+  [0, .05, .10, .15, .20, .25, .30].forEach(v => {
+    s += `<line x1="${x(v).toFixed(1)}" y1="${T - 8}" x2="${x(v).toFixed(1)}" y2="${H - 30}" stroke="var(--grid)" stroke-width="1" shape-rendering="crispEdges"/>`;
+    s += tx(x(v), T - 16, pct(v, 0), { anchor: "middle" });
+  });
+  rows.forEach((r, i) => {
+    const y0 = T + i * GRP;
+    let t = r[0]; if (t.length > 40) t = t.slice(0, 38) + "…";
+    s += tx(LAB, y0 + BH + 1, t, { anchor: "end", fill: "var(--ink)", size: 11.5, mono: false });
+    s += tx(LAB, y0 + BH + 14, num(r[3]) + " cit · " + num(r[4]) + " sess", { anchor: "end", size: 10 });
+    [[r[1], "var(--c1)", 0], [r[2], "var(--c2)", BH + GAP]].forEach(([v, col, off]) => {
+      s += `<rect x="${ML}" y="${(y0 + off).toFixed(1)}" width="${Math.max(1.5, x(v) - ML).toFixed(1)}" height="${BH}" rx="3" fill="${col}"/>`;
+    });
+    s += tx(Math.max(x(r[1]), x(r[2])) + 7, y0 + BH + 1, (r[1] >= r[2] ? "+" : "−") + pct(Math.abs(r[1] - r[2])), { fill: "var(--ink-2)", size: 10.5 });
+    s += `<rect class="hit" x="0" y="${(y0 - 5).toFixed(1)}" width="${W}" height="${GRP}" fill="transparent" data-tip="${
+      ttip(r[0], [["Citations", num(r[3]) + " (" + pct(r[1]) + ")"], ["Sessions", num(r[4]) + " (" + pct(r[2]) + ")"],
+        ["Page CTR", r[3] ? pct(r[4] / r[3], 2) : "—"]]).replace(/"/g, "&quot;")}"/>`;
+  });
+  s += tx(ML, H - 8, "SHARE OF SITE TOTAL", { size: 9.5, ls: ".1em", weight: 500 });
+  s += tx(W - 4, T - 16, "CITATION SHARE − SESSION SHARE", { anchor: "end", size: 9.5, ls: ".08em", weight: 500 });
+  const el = svgSet("c-top", W, H); el.innerHTML = s; bindTips(el);
+})();
+
+/* ---------- 4. scatter, log-log ---------- */
+(function () {
+  const p = DATA.scatter, W = 900, ML = 54, MR = 24, T = 24, B = 386, H = 430;
+  const PW = W - ML - MR;
+  const lx = v => ML + (Math.log10(v) - 0) / (Math.log10(3000) - 0) * PW;
+  const YLO = 0.78, ly = v => B - (Math.log10(v / YLO)) / (Math.log10(60 / YLO)) * (B - T);
+  let s = "";
+  [1, 10, 100, 1000].forEach(v => {
+    s += `<line x1="${lx(v).toFixed(1)}" y1="${T}" x2="${lx(v).toFixed(1)}" y2="${B}" stroke="var(--grid)" stroke-width="1" shape-rendering="crispEdges"/>`;
+    s += tx(lx(v), B + 16, num(v), { anchor: "middle" });
+  });
+  [1, 10, 50].forEach(v => { s += gridline(ML, ly(v), W - MR) + tx(ML - 8, ly(v) + 3.5, num(v), { anchor: "end" }); });
+  // ratio reference lines: sessions = k * citations
+  const refs = [[1, "100% ratio — impossible for a real CTR", "6 4", "var(--crit)"], [DATA.headline.ctrBoth, "4.10% — the coverage-matched site rate", "", "var(--ink-2)"]];
+  refs.forEach(([k, lab, dash, col]) => {
+    const x1 = Math.max(1, 1 / k), y1 = x1 * k, x2 = 3000, y2 = Math.min(60, x2 * k);
+    const xa = Math.max(ML, lx(x1)), xb = lx(y2 >= 60 ? 60 / k : x2);
+    s += `<line x1="${xa.toFixed(1)}" y1="${ly(Math.max(1, y1)).toFixed(1)}" x2="${xb.toFixed(1)}" y2="${ly(Math.min(60, (y2 >= 60 ? 60 : y2))).toFixed(1)}" stroke="${col}" stroke-width="1.5" stroke-opacity=".7"${dash ? ` stroke-dasharray="${dash}"` : ""}/>`;
+  });
+  p.forEach(r => {
+    const ratio = r[2] / r[1], hot = ratio > 1;
+    s += `<circle class="hit" cx="${lx(r[1]).toFixed(1)}" cy="${ly(r[2]).toFixed(1)}" r="${hot ? 5.5 : 4.5}" `
+      + `fill="${hot ? 'var(--crit)' : 'var(--c1)'}" fill-opacity="${hot ? 1 : .75}" stroke="var(--surface)" stroke-width="2" `
+      + `data-tip="${ttip(r[0], [["Citations", num(r[1])], ["Sessions", num(r[2])], ["Ratio", pct(ratio, 1)], ["Section", r[3]]]).replace(/"/g, "&quot;")}"/>`;
+  });
+  // label the two impossible ones
+  p.filter(r => r[2] / r[1] > 1.5).forEach(r => {
+    const nm = `${r[0].length > 30 ? r[0].slice(0, 29) + "…" : r[0]} — ${pct(r[2] / r[1], 0)}`;
+    // the high-ratio point sits near the top: label left of it, clear of the dashed diagonal.
+    // the low-count point sits at the left edge: label below-right, clear of the same diagonal.
+    if (r[2] >= 10) s += tx(lx(r[1]) - 11, ly(r[2]) + 4, nm, { fill: "var(--crit)", size: 11, anchor: "end" });
+    else s += tx(lx(r[1]) + 10, ly(r[2]) + 26, nm, { fill: "var(--crit)", size: 11 });
+  });
+  s += `<line x1="${ML}" y1="${B}" x2="${W - MR}" y2="${B}" stroke="var(--axis)" stroke-width="1"/>`;
+  s += tx(ML, B + 34, "BING AI CITATIONS PER PAGE  (LOG)", { size: 9.5, ls: ".1em", weight: 500 });
+  s += `<text x="${ML - 40}" y="${(T + B) / 2}" fill="var(--muted)" font-size="9.5" font-family="var(--mono)" font-weight="500" letter-spacing=".1em" text-anchor="middle" transform="rotate(-90 ${ML - 40} ${(T + B) / 2})">SESSIONS PER PAGE  (LOG)</text>`;
+  const el = svgSet("c-scatter", W, H); el.innerHTML = s; bindTips(el);
+})();
+
+/* ---------- 5. referrer population mismatch ---------- */
+(function () {
+  const W = 900, ML = 8, MR = 8, H = 236, BH = 44;
+  const PW = W - ML - MR;
+  const ref = DATA.referrers;
+  const cols = { ChatGPT: "var(--c2)", Claude: "var(--c1)", Gemini: "var(--c3)", Copilot: "var(--c4)" };
+  let s = "";
+  // row 1 — sessions
+  s += tx(ML, 16, "WHERE THE 443 SESSIONS CAME FROM  ·  MIXPANEL", { size: 9.5, ls: ".1em", weight: 500, fill: "var(--ink-2)" });
+  let ox = ML;
+  ref.forEach(r => {
+    const w = r.share * PW;
+    s += `<rect x="${ox.toFixed(1)}" y="28" width="${Math.max(1, w - 2).toFixed(1)}" height="${BH}" rx="3" fill="${cols[r.name]}" `
+      + `class="hit" data-tip="${ttip(r.name, [["Sessions", num(r.sessions)], ["Share", pct(r.share)], ["Landing pages", r.pages]]).replace(/"/g, "&quot;")}"/>`;
+    if (w > 90) s += tx(ox + 12, 54, `${r.name}  ${pct(r.share)}`, { fill: "#fff", size: 13, weight: 600, mono: false });
+    ox += w;
+  });
+  // leader labels for the small three
+  let lx2 = ML + ref[0].share * PW;
+  s += `<line x1="${lx2.toFixed(1)}" y1="74" x2="${lx2.toFixed(1)}" y2="88" stroke="var(--axis)" stroke-width="1"/>`;
+  s += `<line x1="${lx2.toFixed(1)}" y1="88" x2="${(W - MR).toFixed(1)}" y2="88" stroke="var(--axis)" stroke-width="1"/>`;
+  s += tx(W - MR, 104, "Claude 5.0%  ·  Gemini 3.8%  ·  Copilot 0.7% (3 sessions)", { fill: "var(--ink-2)", size: 11.5, anchor: "end" });
+  // row 2 — citations
+  s += tx(ML, 144, "WHAT THE 9,202 CITATIONS COUNT  ·  BING AI PERFORMANCE", { size: 9.5, ls: ".1em", weight: 500, fill: "var(--ink-2)" });
+  s += `<rect x="${ML}" y="156" width="${PW}" height="${BH}" rx="3" fill="var(--c1)" fill-opacity=".22" stroke="var(--c1)" stroke-width="1.5" stroke-dasharray="5 4"/>`;
+  s += tx(ML + 14, 183, "Microsoft Copilot + Bing AI summaries + partner integrations — 100%", { fill: "var(--ink)", size: 13, weight: 600, mono: false });
+  s += tx(ML, 224, "The only assistant in both rows is Copilot, at 0.7% of sessions. Nothing ChatGPT does appears in the denominator.", { fill: "var(--ink-2)", size: 12, mono: false });
+  const el = svgSet("c-ref", W, H); el.innerHTML = s; bindTips(el);
+})();
+
+/* ---------- 6. coverage ---------- */
+(function () {
+  const W = 900, ML = 8, MR = 8, H = 138, BH = 46, PW = W - ML - MR;
+  const st = DATA.status, total = 104;
+  const seg = [
+    ["cited, no landings", st["cited, no landings"], "var(--c1)", "Cited, never landed on", "Visible in Bing AI answers, but no AI-assistant session ever arrived"],
+    ["cited and landed", st["cited and landed"], "var(--c3)", "Cited and landed on", "The only pages where a page-level CTR exists at all"],
+    ["landings, not cited", st["landings, not cited"], "var(--c2)", "Landings, never cited", "Traffic without a Bing citation"]
+  ];
+  let s = "", ox = ML;
+  s += tx(ML, 16, "104 CANONICAL URLS, OUTER-JOINED ACROSS BOTH SOURCES", { size: 9.5, ls: ".1em", weight: 500, fill: "var(--ink-2)" });
+  seg.forEach(([, n, col, lab, desc]) => {
+    const w = n / total * PW;
+    s += `<rect x="${ox.toFixed(1)}" y="28" width="${(w - 2).toFixed(1)}" height="${BH}" rx="3" fill="${col}" class="hit" `
+      + `data-tip="${ttip(lab, [["Pages", n], ["Share", pct(n / total)]]).replace(/"/g, "&quot;")}"/>`;
+    s += tx(ox + 11, 50, String(n), { fill: "#fff", size: 17, weight: 600 });
+    s += tx(ox + 11, 66, pct(n / total, 0), { fill: "#fff", size: 11, weight: 500 });
+    const lastSeg = ox + w > PW * .9;
+    const tAnchor = lastSeg ? "end" : "start", tX = lastSeg ? W - MR : ox;
+    s += tx(tX, 92, lab, { fill: "var(--ink)", size: 12.5, weight: 600, mono: false, anchor: tAnchor });
+    // wrap description to the segment's own width
+    const words = desc.split(" "); let lineArr = [], cur = "";
+    words.forEach(wd => { if ((cur + " " + wd).length > Math.max(20, w / 5.9)) { lineArr.push(cur); cur = wd; } else cur = cur ? cur + " " + wd : wd; });
+    lineArr.push(cur);
+    lineArr.slice(0, 3).forEach((L, k) => { s += tx(tX, 108 + k * 14, L, { fill: "var(--ink-2)", size: 11, mono: false, anchor: tAnchor }); });
+    ox += w;
+  });
+  const el = svgSet("c-cov", W, H + 20); el.innerHTML = s; bindTips(el);
+})();
+</script>
